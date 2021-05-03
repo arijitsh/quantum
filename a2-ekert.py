@@ -1,6 +1,8 @@
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister, Aer, execute
 from numpy.random import randint
 
+verb = True
+
 
 class ThirdParty:
 
@@ -54,18 +56,18 @@ class Alice:
                 # measure the spin projection of Alice's qubit onto the a_3 direction (standard Z basis)
 
             a.measure(qr[0], cr[0])
-            ret_circuits.append((qr, cr, circuits[i][2]+a))
+            ret_circuits.append((qr, cr, circuits[i][2] + a))
 
         return ret_circuits
 
     def declare_bases(self):
         return self.bases
 
-    def gen_final_key(self, b_bases):
+    def gen_final_key(self, measures, b_bases):
         self.final_key = []
         for q in range(self.num_bits):
             if self.bases[q] == b_bases[q]:
-                self.final_key.append(self.bits[q])
+                self.final_key.append(measures[q])
         return None
 
     def show_final_key(self):
@@ -111,11 +113,11 @@ class Bob:
     def declare_bases(self):
         return self.bases
 
-    def gen_final_key(self, a_bases):
+    def gen_final_key(self, measures, a_bases):
         self.final_key = []
         for q in range(self.num_bits):
             if self.bases[q] == a_bases[q]:
-                self.final_key.append(self.measurements[q])
+                self.final_key.append(1 - measures[q])
         return None
 
     def show_final_key(self):
@@ -123,7 +125,7 @@ class Bob:
 
 
 def generate_key():
-    num_bits = 100
+    num_bits = 10
     third_party = ThirdParty(num_bits)
 
     circuits = third_party.create_entangled_electrons()
@@ -134,18 +136,25 @@ def generate_key():
     final_circuits = bob.add_measure_circuit(alice_circuits)
 
     backend = Aer.get_backend('qasm_simulator')
-    result = execute(final_circuits, backend=backend, shots=1).result()
+    result = execute(final_circuits, backend=backend, shots=10).result()
 
+    a_measures = []
+    b_measures = []
     for i in range(num_bits):
-        print(alice.bases[i], " ", bob.bases[i])
-        # print(final_circuits[i].draw(output="text"))
-        print(result.get_counts(final_circuits[i]), " : ", i )
+        if verb:
+            print(alice.bases[i], " ", bob.bases[i])
+            print(final_circuits[i].draw(output="text"))
+            print(result.get_counts(final_circuits[i])
+)
+        d = result.get_counts(final_circuits[i])
+        a_measures.append(int(list(d.keys())[0][3]))
+        b_measures.append(int(list(d.keys())[0][2]))
 
     a_bases = alice.declare_bases()
     b_bases = bob.declare_bases()
 
-    alice.gen_final_key(b_bases)
-    bob.gen_final_key(a_bases)
+    alice.gen_final_key(a_measures, b_bases)
+    bob.gen_final_key(b_measures, a_bases)
 
     print(alice.show_final_key())
     print(bob.show_final_key())
