@@ -1,12 +1,35 @@
-from qiskit import QuantumCircuit, Aer, assemble
+from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister, Aer
 from numpy.random import randint
+
+
+class ThirdParty:
+
+    def __init__(self, num_bits):
+        self.a_electrons = []
+        self.b_electrons = []
+        self.num_bits = num_bits
+
+    def create_entangled_electrons(self):
+        for i in range(self.num_bits):
+            qr = QuantumRegister(2, name="qr")
+            cr = ClassicalRegister(4, name="cr")
+            qc = QuantumCircuit(qr, cr)
+            qc.x(qr[0])
+            qc.x(qr[1])
+            qc.h(qr[0])
+            qc.cx(qr[0], qr[1])
+            # qc.draw(output="mpl")
+            self.a_electrons.append(qr[0])
+            self.b_electrons.append(qr[1])
+        return self.a_electrons, self.b_electrons
 
 
 class Alice:
 
-    def __init__(self, num_bits):
+    def __init__(self, num_bits, electrons):
         self.final_key = []
         self.num_bits = num_bits
+        self.electrons = electrons
         self.bits = randint(2, size=num_bits)
         self.bases = randint(2, size=num_bits)
 
@@ -45,9 +68,10 @@ class Alice:
 
 class Bob:
 
-    def __init__(self, num_bits):
+    def __init__(self, num_bits, electrons):
         self.measurements = []
         self.final_key = []
+        self.electrons = electrons
         self.num_bits = num_bits
         self.bases = randint(2, size=num_bits)
 
@@ -80,41 +104,15 @@ class Bob:
         return self.final_key
 
 
-class Eve:
-
-    def __init__(self):
-        self.num_bits = 0
-        self.new_message = []
-        self.key = []
-
-    def read_message(self, message):
-        self.num_bits = len(message)
-        return None
-
-    def create_new_message(self):
-        return self.new_message
-
-    def show_key(self):
-        return self.key
-
-
-def generate_key(intercept=False):
+def generate_key():
     num_bits = 10
-    alice = Alice(num_bits)
-    bob = Bob(num_bits)
+    thirdparty = ThirdParty(num_bits)
 
-    if intercept:
-        print("\n Communication with Interception from Eve")
-    else:
-        print("\n Communication without interception")
+    a_electrons, b_electrons = thirdparty.create_entangled_electrons()
+    alice = Alice(num_bits, a_electrons)
+    bob = Bob(num_bits, b_electrons)
 
     message = alice.send_message()
-
-    if intercept:
-        eve = Eve()
-        eve.read_message(message)
-        message = eve.create_new_message()
-
     bob.receive_message(message)
 
     a_bases = alice.declare_bases()
@@ -123,12 +121,9 @@ def generate_key(intercept=False):
     alice.gen_final_key(b_bases)
     bob.gen_final_key(a_bases)
 
-    print(alice.show_final_key(), " Key at Alice's side")
-    print(bob.show_final_key(), " Key at Bob's side")
-    if intercept:
-        print(eve.show_key(), " Key at Eve's side")
+    print(alice.show_final_key())
+    print(bob.show_final_key())
 
 
 if __name__ == '__main__':
     generate_key()
-    generate_key(intercept=True)
