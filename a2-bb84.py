@@ -1,6 +1,6 @@
 from qiskit import QuantumCircuit, Aer, assemble
 from numpy.random import randint
-
+import sys
 
 class Alice:
 
@@ -112,8 +112,8 @@ def generate_key(intercept=False):
 
     if intercept:
         eve = Eve()
-        eve.read_message(message)
-        message = eve.create_new_message()
+        # eve.read_message(message)
+        # message = eve.create_new_message()
 
     bob.receive_message(message)
 
@@ -130,5 +130,7 @@ def generate_key(intercept=False):
 
 
 if __name__ == '__main__':
-    generate_key()
-    generate_key(intercept=True)
+    if len(sys.argv) > 1:
+        generate_key(intercept=True)
+    else:
+        generate_key()

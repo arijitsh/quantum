@@ -1,7 +1,7 @@
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister, Aer, execute
 from numpy.random import randint
 
-verb = True
+verb = False
 
 
 class ThirdParty:
@@ -125,7 +125,7 @@ class Bob:
 
 
 def generate_key():
-    num_bits = 10
+    num_bits = 50
     third_party = ThirdParty(num_bits)
 
     circuits = third_party.create_entangled_electrons()
@@ -136,7 +136,7 @@ def generate_key():
     final_circuits = bob.add_measure_circuit(alice_circuits)
 
     backend = Aer.get_backend('qasm_simulator')
-    result = execute(final_circuits, backend=backend, shots=10).result()
+    result = execute(final_circuits, backend=backend, shots=1).result()
 
     a_measures = []
     b_measures = []
@@ -148,7 +148,7 @@ def generate_key():
 )
         d = result.get_counts(final_circuits[i])
         a_measures.append(int(list(d.keys())[0][3]))
-        b_measures.append(int(list(d.keys())[0][2]))
+        b_measures.append(1 - int(list(d.keys())[0][3]))
 
     a_bases = alice.declare_bases()
     b_bases = bob.declare_bases()
@@ -156,8 +156,8 @@ def generate_key():
     alice.gen_final_key(a_measures, b_bases)
     bob.gen_final_key(b_measures, a_bases)
 
-    print(alice.show_final_key())
-    print(bob.show_final_key())
+    print(alice.show_final_key(), " Key at Alice's side")
+    print(bob.show_final_key(), "Key at Bob's side")
 
 
 if __name__ == '__main__':
