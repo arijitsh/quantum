@@ -106,9 +106,9 @@ class Bob:
 
 def generate_key():
     num_bits = 10
-    thirdparty = ThirdParty(num_bits)
+    third_party = ThirdParty(num_bits)
 
-    a_electrons, b_electrons = thirdparty.create_entangled_electrons()
+    a_electrons, b_electrons = third_party.create_entangled_electrons()
     alice = Alice(num_bits, a_electrons)
     bob = Bob(num_bits, b_electrons)
 
