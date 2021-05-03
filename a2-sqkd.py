@@ -7,14 +7,14 @@ verb = False
 class Alice:
 
     def __init__(self, num_bits):
-        self.test_bits = []
-        self.final_key = []
         self.num_bits = num_bits
         self.bits = randint(2, size=num_bits)
         self.bases = randint(2, size=num_bits)
-        self.final_key = []
+
         self.b_message = []
         self.sift_bits = []
+        self.test_bits = []
+        self.final_key = []
 
     def create_send_message(self):
         message = []
@@ -70,12 +70,13 @@ class Alice:
 class Bob:
 
     def __init__(self, num_bits):
-        self.final_key = []
         self.num_bits = num_bits
         self.bases = randint(2, size=num_bits)
         self.sift_bits = randint(2, size=num_bits)
+
         self.new_message = []
         self.raw_key = []
+        self.final_key = []
 
     def receive_message_sift_or_reflect(self, message):
         backend = Aer.get_backend('qasm_simulator')

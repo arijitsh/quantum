@@ -1,12 +1,11 @@
-from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister, Aer
+from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister, Aer, execute
 from numpy.random import randint
 
 
 class ThirdParty:
 
     def __init__(self, num_bits):
-        self.a_electrons = []
-        self.b_electrons = []
+        self.circuits = []
         self.num_bits = num_bits
 
     def create_entangled_electrons(self):
@@ -19,38 +18,45 @@ class ThirdParty:
             qc.h(qr[0])
             qc.cx(qr[0], qr[1])
             # qc.draw(output="mpl")
-            self.a_electrons.append(qr[0])
-            self.b_electrons.append(qr[1])
-        return self.a_electrons, self.b_electrons
+            self.circuits.append((qr, cr, qc))
+        return self.circuits
 
 
 class Alice:
 
-    def __init__(self, num_bits, electrons):
+    def __init__(self, num_bits):
         self.final_key = []
         self.num_bits = num_bits
-        self.electrons = electrons
-        self.bits = randint(2, size=num_bits)
-        self.bases = randint(2, size=num_bits)
+        self.bits = []
+        self.circuits = []
+        self.bases = randint(3, size=num_bits)
 
-    def send_message(self):
-        message = []
+        self.measurements = []
+
+    def add_measure_circuit(self, circuits):
+        ret_circuits = []
         for i in range(self.num_bits):
-            qc = QuantumCircuit(1, 1)
-            if self.bases[i] == 0:  # Prepare qubit in Z-basis
-                if self.bits[i] == 0:
-                    pass
-                else:
-                    qc.x(0)
-            else:  # Prepare qubit in X-basis
-                if self.bits[i] == 0:
-                    qc.h(0)
-                else:
-                    qc.x(0)
-                    qc.h(0)
-            qc.barrier()
-            message.append(qc)
-        return message
+            qr = circuits[i][0]
+            cr = circuits[i][1]
+            a = QuantumCircuit(qr, cr, name=('a' + str(i)))
+
+            if self.bases[i] == 0:
+                # measure the spin projection of Alice's qubit onto the a_1 direction (X basis)
+                a.h(qr[0])
+            elif self.bases[i] == 1:
+                # measure the spin projection of Alice's qubit onto the a_2 direction (W basis)
+                a.s(qr[0])
+                a.h(qr[0])
+                a.t(qr[0])
+                a.h(qr[0])
+            else:
+                assert (self.bases[i] == 2)
+                # measure the spin projection of Alice's qubit onto the a_3 direction (standard Z basis)
+
+            a.measure(qr[0], cr[0])
+            ret_circuits.append((qr, cr, circuits[i][2]+a))
+
+        return ret_circuits
 
     def declare_bases(self):
         return self.bases
@@ -68,27 +74,39 @@ class Alice:
 
 class Bob:
 
-    def __init__(self, num_bits, electrons):
+    def __init__(self, num_bits):
         self.measurements = []
         self.final_key = []
-        self.electrons = electrons
         self.num_bits = num_bits
-        self.bases = randint(2, size=num_bits)
+        self.bases = randint(3, size=num_bits)
 
-    def receive_message(self, message):
-        backend = Aer.get_backend('qasm_simulator')
-        for q in range(self.num_bits):
-            if self.bases[q] == 0:  # measuring in Z-basis
-                message[q].measure(0, 0)
-            if self.bases[q] == 1:  # measuring in X-basis
-                message[q].h(0)
-                message[q].measure(0, 0)
-            qasm_sim = Aer.get_backend('qasm_simulator')
-            qobj = assemble(message[q], shots=1, memory=True)
-            result = qasm_sim.run(qobj).result()
-            measured_bit = int(result.get_memory()[0])
-            self.measurements.append(measured_bit)
-        return None
+    def add_measure_circuit(self, circuits):
+        ret_circuits = []
+        for i in range(self.num_bits):
+            qr = circuits[i][0]
+            cr = circuits[i][1]
+            b = QuantumCircuit(qr, cr, name=('b' + str(i)))
+
+            if self.bases[i] == 0:
+                # measure the spin projection of Bob's qubit onto the b_1 direction (W basis)
+                b.s(qr[1])
+                b.h(qr[1])
+                b.t(qr[1])
+                b.h(qr[1])
+                # measure the spin projection of Bob's qubit onto the b_2 direction (standard Z basis)
+            elif self.bases[i] == 2:
+                # measure the spin projection of Bob's qubit onto the b_3 direction (V basis)
+                b.s(qr[1])
+                b.h(qr[1])
+                b.tdg(qr[1])
+                b.h(qr[1])
+            else:
+                assert (self.bases[i] == 1)
+
+            b.measure(qr[1], cr[1])
+            ret_circuits.append(circuits[i][2] + b)
+
+        return ret_circuits
 
     def declare_bases(self):
         return self.bases
@@ -105,15 +123,23 @@ class Bob:
 
 
 def generate_key():
-    num_bits = 10
+    num_bits = 100
     third_party = ThirdParty(num_bits)
 
-    a_electrons, b_electrons = third_party.create_entangled_electrons()
-    alice = Alice(num_bits, a_electrons)
-    bob = Bob(num_bits, b_electrons)
+    circuits = third_party.create_entangled_electrons()
+    alice = Alice(num_bits)
+    bob = Bob(num_bits)
 
-    message = alice.send_message()
-    bob.receive_message(message)
+    alice_circuits = alice.add_measure_circuit(circuits)
+    final_circuits = bob.add_measure_circuit(alice_circuits)
+
+    backend = Aer.get_backend('qasm_simulator')
+    result = execute(final_circuits, backend=backend, shots=1).result()
+
+    for i in range(num_bits):
+        print(alice.bases[i], " ", bob.bases[i])
+        # print(final_circuits[i].draw(output="text"))
+        print(result.get_counts(final_circuits[i]), " : ", i )
 
     a_bases = alice.declare_bases()
     b_bases = bob.declare_bases()
