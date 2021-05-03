@@ -1,6 +1,6 @@
 from numpy.random import randint, rand
 from qiskit import QuantumCircuit, Aer, assemble
-
+import numpy as np
 verb = False
 
 
@@ -79,7 +79,7 @@ class Bob:
 
     def receive_message_sift_or_reflect(self, message):
         backend = Aer.get_backend('qasm_simulator')
-        for q in range(len(message)):
+        for q in range(self.num_bits):
             if self.sift_bits[q] == 1:  # sift bits
                 message[q].measure(0, 0)
                 qasm_sim = Aer.get_backend('qasm_simulator')
@@ -106,6 +106,7 @@ class Bob:
                 final_key.append(self.raw_key[i])
             elif verb:
                 final_key.append(2)
+        self.final_key = final_key
         return None
 
     def show_final_key(self):
@@ -172,6 +173,13 @@ def generate_key(intercept=False):
 
     alice.gen_final_key()
     bob.gen_final_key(a_bases, test_bits)
+
+    if verb:
+        print(np.array(test_bits), "test_bits")
+        print(a_bases, "a_bases")
+        print(sift_bits, "sift_bits")
+        print(np.array(alice.bits), "a_raw_key")
+        print(np.array(bob.raw_key), "b_raw_key")
 
     print(alice.show_final_key(), " Key at Alice's side")
     print(bob.show_final_key(), " Key at Bob's side")
